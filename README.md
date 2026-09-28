@@ -18,7 +18,10 @@
 | `tasks/10989-fetch-connection/` | 10989 | HTTP 连接复用导致响应串包 |
 | `tasks/10990-retry-storm/` | 10990 | 重试风暴与熔断 |
 | `tasks/10991-handler-pool/` | 10991 | 对象池复用未清零 |
+| `tasks/10994-scheduler/` | 10994 | 调度器重复触发与漏触发 |
 | `tasks/10995-ingest-backpressure/` | 10995 | 背压缺失与内存堆积 |
+| `tasks/10999-storage-errors/` | 10999 | 持久化错误被静默吞掉 |
+| `tasks/11001-hotcache-stampede/` | 11001 | 热点缓存击穿 |
 
 ## 每个任务子目录的内容
 
