@@ -13,6 +13,14 @@ class RequestContext:
     __slots__ = ("user", "amount", "trace_id")
 
     def __init__(self):
+        self.reset()
+
+    def reset(self):
+        """重置契约：复用前必须清零的全部字段。
+
+        user / amount / trace_id 任一残留都会泄漏到下一个请求，
+        因此这里必须覆盖 __slots__ 中的每一个字段。
+        """
         self.user = None
         self.amount = 0
         self.trace_id = None
@@ -29,11 +37,14 @@ class Pool:
         with self._lock:
             if self._free:
                 self.reused += 1
-                return self._free.pop()
+                ctx = self._free.pop()
+                ctx.reset()  # 防御性清零：保证取出的对象一定是干净的
+                return ctx
         self.created += 1
         return RequestContext()
 
     def release(self, ctx):
+        ctx.reset()  # 回收即清零：入池对象不得携带上一请求的数据
         with self._lock:
             self._free.append(ctx)
 
@@ -48,10 +59,13 @@ class Handler:
 
     def handle(self, user, amount, trace_id=None):
         ctx = self.pool.acquire()
-        ctx.user = user
-        if amount > 0:
-            ctx.amount = amount
-        ctx.trace_id = trace_id
-        result = {"user": ctx.user, "amount": ctx.amount, "trace_id": ctx.trace_id}
-        self.pool.release(ctx)
-        return result
+        try:
+            ctx.user = user
+            if amount > 0:
+                ctx.amount = amount
+            ctx.trace_id = trace_id
+            return {"user": ctx.user, "amount": ctx.amount, "trace_id": ctx.trace_id}
+        finally:
+            # 正常返回、异常抛出、执行被取消（如 KeyboardInterrupt）
+            # 都必须把 ctx 归还池中，且 release 内部负责清零。
+            self.pool.release(ctx)
